@@ -84,8 +84,16 @@ uv sync --extra browser      # stealth/CDP browser (patchright)
 ```
 
 OCR needs the **Tesseract-OCR binary** (not the pip package): install it (e.g.
-`winget install UB-Mannheim.TesseractOCR`) and, for non-English screens, add the
-matching `*.traineddata` to `tessdata`.
+`winget install UB-Mannheim.TesseractOCR`). For extra languages, pull the models
+into a local `tessdata/` folder (no admin rights needed — picked up automatically):
+
+```bash
+uv run python scripts/download_langs.py            # Russian + English (default)
+uv run python scripts/download_langs.py deu fra     # any Tesseract languages
+```
+
+Russian is supported out of the box via the script above (`rus+eng`). The backend
+finds `tessdata/` next to the project or via `VISION_BRIDGE_TESSDATA`.
 
 ## Run
 
@@ -175,5 +183,6 @@ MIT — see [`LICENSE`](LICENSE).
 окон, Electron/Chromium (через OCR) и браузера. Экран отдаётся **текстом**, поэтому
 подходит даже текстовым моделям (DeepSeek и др.). Браузер — незаметно: реальный
 Chrome по CDP (живые куки, сессии не рвутся) или стелс-браузер на patchright
-(`navigator.webdriver=false`). Архитектура и план — в
+(`navigator.webdriver=false`). OCR понимает **русский** (`uv run python
+scripts/download_langs.py`). Архитектура и план — в
 [`docs/01_architecture.md`](docs/01_architecture.md).

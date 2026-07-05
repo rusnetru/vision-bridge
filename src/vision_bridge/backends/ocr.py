@@ -11,8 +11,10 @@ capture отдаёт понятную ошибку с подсказкой, не
 
 from __future__ import annotations
 
+import glob
 import os
 import time
+from pathlib import Path
 
 from ..models import (
     ActResult,
@@ -25,7 +27,7 @@ from ..models import (
 from . import uia
 
 PREFIX = "o"  # id элементов: o0, o1, …
-DESIRED_LANGS = ("rus", "eng")  # берём те, что реально установлены
+DESIRED_LANGS = ("rus", "eng")  # порядок приоритета; берём реально доступные
 MIN_CONF = 40  # порог уверенности Tesseract
 
 # Типичные места установки бинарника (UB-Mannheim), если его нет в PATH.
@@ -34,35 +36,59 @@ _COMMON_EXE = (
     r"C:\Program Files\Tesseract-OCR\tesseract.exe",
     r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
 )
+# Локальная папка с языковыми моделями (rus/eng). Не требует прав на Program Files;
+# заполняется скриптом scripts/download_langs.py. Приоритет: env → <repo>/tessdata.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_TESSDATA_CANDIDATES = (
+    os.environ.get("VISION_BRIDGE_TESSDATA", ""),
+    str(_REPO_ROOT / "tessdata"),
+)
 _lang_cache: str | None = None
 
 
-def _configure() -> None:
-    """Указать pytesseract на бинарник, если он не в PATH."""
-    import pytesseract
+def _tessdata_dir() -> str | None:
+    """Папка с локальными *.traineddata, если она есть и непуста."""
+    for cand in _TESSDATA_CANDIDATES:
+        if cand and glob.glob(os.path.join(cand, "*.traineddata")):
+            return cand
+    return None
 
-    cur = pytesseract.pytesseract.tesseract_cmd
+
+def _configure() -> None:
+    """Настроить pytesseract: путь к бинарнику и локальную папку языков.
+
+    Локальные модели подключаем через TESSDATA_PREFIX (а не --tessdata-dir):
+    последнее ломается о пробелы в пути при наивном split в pytesseract.
+    """
+    import pytesseract
     from shutil import which
 
-    if which(cur):
-        return
-    for cand in _COMMON_EXE:
-        if cand and os.path.exists(cand):
-            pytesseract.pytesseract.tesseract_cmd = cand
-            return
+    if not which(pytesseract.pytesseract.tesseract_cmd):
+        for cand in _COMMON_EXE:
+            if cand and os.path.exists(cand):
+                pytesseract.pytesseract.tesseract_cmd = cand
+                break
+
+    d = _tessdata_dir()
+    if d:
+        os.environ["TESSDATA_PREFIX"] = d
 
 
 def _lang() -> str:
-    """Строка языков из реально установленных traineddata (rus+eng / eng / …)."""
+    """Языки из реально доступных traineddata (локальная папка приоритетнее)."""
     global _lang_cache
     if _lang_cache is not None:
         return _lang_cache
     import pytesseract
 
-    try:
-        have = set(pytesseract.get_languages(config=""))
-    except Exception:  # noqa: BLE001
-        have = set()
+    d = _tessdata_dir()
+    if d:
+        have = {Path(p).stem for p in glob.glob(os.path.join(d, "*.traineddata"))}
+    else:
+        try:
+            have = set(pytesseract.get_languages(config=""))
+        except Exception:  # noqa: BLE001
+            have = set()
     picked = [ln for ln in DESIRED_LANGS if ln in have] or ["eng"]
     _lang_cache = "+".join(picked)
     return _lang_cache
