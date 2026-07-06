@@ -157,7 +157,15 @@ def wait_for(query: str, target: str = "", timeout_s: float = 10.0,
     mod = _load(name)
     if isinstance(mod, Exception):
         return FindResult(ok=False, error=_hint(name, mod)).model_dump()
-    return mod.wait_for(query, target, timeout_s).model_dump()
+    res = mod.wait_for(query, target, timeout_s)
+    # auto: если UIA не нашёл — пробуем OCR (аналогично find)
+    if name == "uia" and mode == "auto" and not res.ok:
+        ocr = _load("ocr")
+        if not isinstance(ocr, Exception):
+            ocr_res = ocr.wait_for(query, target, timeout_s)
+            if ocr_res.ok:
+                return ocr_res.model_dump()
+    return res.model_dump()
 
 
 # ─────────────────────── браузер: управление сессией ───────────────────────

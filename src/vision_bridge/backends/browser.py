@@ -35,14 +35,16 @@ PREFIX = "b"  # id элементов: b0, b1, …
 DEFAULT_CDP = "http://localhost:9222"
 
 _pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="browser")
+_BROWSER_TIMEOUT = 30  # таймаут на браузерную операцию (сек)
 
 # Живёт в потоке _pool.
 _state: dict = {"pw": None, "browser": None, "context": None, "page": None,
                 "mode": None, "backend": Backend.PLAYWRIGHT}
 
 
-def _run(fn, *args):
-    return _pool.submit(fn, *args).result()
+def _run(fn, *args, timeout: float = _BROWSER_TIMEOUT):
+    """Выполнить fn в браузерном потоке с таймаутом."""
+    return _pool.submit(fn, *args).result(timeout=timeout)
 
 
 # JS: тегирует интерактивные элементы и возвращает их + текст страницы.

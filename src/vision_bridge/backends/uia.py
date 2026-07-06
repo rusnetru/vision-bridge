@@ -14,6 +14,7 @@ import concurrent.futures
 import time
 
 import uiautomation as auto
+from uiautomation import uiautomation as _ua
 
 from ..models import (
     ActResult,
@@ -44,10 +45,17 @@ _counter = 0
 
 # Выделенный поток для всех COM/UIA-вызовов.
 _pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="uia")
+_UIA_TIMEOUT = 15  # таймаут на UIA-операцию (сек), чтобы не вешать MCP-вызов
 
 
-def _run(fn, *args):
-    return _pool.submit(fn, *args).result()
+def _run(fn, *args, timeout: float = _UIA_TIMEOUT):
+    """Выполнить fn в COM-потоке с инициализацией CoInitialize и таймаутом."""
+
+    def _wrapper():
+        auto.InitializeUIAutomationInCurrentThread()
+        return fn(*args)
+
+    return _pool.submit(_wrapper).result(timeout=timeout)
 
 
 # ─────────────────────────── вспомогательные ───────────────────────────
@@ -162,7 +170,11 @@ def _capture(target: str) -> CaptureResult:
     def walk(ctrl: auto.Control, depth: int) -> None:
         if depth > MAX_DEPTH or len(elements) >= MAX_ELEMENTS:
             return
-        for child in ctrl.GetChildren():
+        try:
+            children = ctrl.GetChildren()
+        except Exception:
+            return
+        for child in children:
             try:
                 role = _role(child)
                 name = (child.Name or "").strip()
@@ -195,7 +207,11 @@ def _search(query: str, target: str) -> auto.Control | None:
     def walk(ctrl: auto.Control, depth: int) -> None:
         if depth > MAX_DEPTH or found:
             return
-        for child in ctrl.GetChildren():
+        try:
+            children = ctrl.GetChildren()
+        except Exception:
+            return
+        for child in children:
             try:
                 text = ((child.Name or "") + " " + (_value(child) or "")).lower()
                 if needle in text and _role(child) in _INTERACTIVE:
