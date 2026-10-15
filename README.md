@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="vision-bridge logo" width="128" height="128">
+</p>
+
 # vision-bridge
 
 **One vision layer for AI agents on Windows — a single MCP server that lets any
@@ -117,6 +121,15 @@ Any MCP client with a `command`/`args` config:
 }
 ```
 
+## Agent skill
+
+[`skill/vision-bridge-windows-automation/`](skill/vision-bridge-windows-automation/SKILL.md)
+is a ready-made SKILL.md that teaches an agent when and how
+to use this server: the capture → act → verify loop, stale-id handling, the OCR
+fallback, browser over CDP, confirmation before irreversible clicks, and a failure
+table. Copy the folder into your agent's skills directory (for Claude Code:
+`~/.claude/skills/`).
+
 ## Examples
 
 **Desktop:**
@@ -161,9 +174,9 @@ browser_open(mode="stealth", url="https://example.com",
 
 ## Status & limits
 
-Stages 0–3 implemented and tested live on real apps (Notepad, Chrome). Roadmap:
-agent skill + scenario tests, optional OmniParser for clickable boxes instead of
-plain OCR text.
+Stages 0–3 implemented and tested live on real apps (Notepad, Chrome). Agent skill:
+done (see above). Roadmap: scenario tests, optional OmniParser for clickable boxes
+instead of plain OCR text.
 
 - Stealth is **not** 100% undetectable (Cloudflare/DataDome evolve) — prefer
   `mode="cdp"` against real Chrome for maximum stealth and session persistence.
@@ -184,5 +197,5 @@ MIT — see [`LICENSE`](LICENSE).
 подходит даже текстовым моделям (DeepSeek и др.). Браузер — незаметно: реальный
 Chrome по CDP (живые куки, сессии не рвутся) или стелс-браузер на patchright
 (`navigator.webdriver=false`). OCR понимает **русский** (`uv run python
-scripts/download_langs.py`). Архитектура и план — в
+scripts/download_langs.py`). Готовый скилл для агента — в `skill/`. Архитектура и план — в
 [`docs/01_architecture.md`](docs/01_architecture.md).
